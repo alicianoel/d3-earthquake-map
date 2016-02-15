@@ -5,11 +5,11 @@
     <style type="text/css">
 
 html, body {
+    font: 10px sans-serif;
     padding: 0;
     margin: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;
     position: relative;
     background: #222234;
     color: white;
@@ -32,15 +32,13 @@ circle {
   stroke-opacity:0;
 }
 
-div.tooltip {
-  color: #222; 
-  background: #fff; 
+.tooltip {
+  color: #fff; 
+  background: #000; 
   padding: .5em; 
-  text-shadow: #f5f5f5 0 1px 0;
-  border-radius: 2px; 
-  box-shadow: 0px 0px 2px 0px #a6a6a6; 
-  opacity: 0.9; 
+  opacity: 0.6; 
   position: absolute;
+  display:none;
 }
 
 
@@ -71,7 +69,7 @@ div.tooltip {
     <div id="map"></div>
     <div id="chart1"></div>
     <h2>
-      <span>All Earthquakes in the past 30 days</span><br>
+      <span>All Earthquakes (Magnitude >= 1) in the past 30 days</span><br>
     </h2>
     <script src="http://d3js.org/d3.v3.min.js"></script>
     <script type="text/javascript" src="http://mbostock.github.io/d3/talk/20111116/d3/d3.csv.js"></script>
@@ -114,7 +112,7 @@ var tooltip = d3.select("#map").append("div")
 
 
 // load and display the World
-d3.json("data/world-50m.json", function(error, topology) {
+d3.json("data/world-110m2.json", function(error, topology) {
     world.selectAll("path")
       .data(topojson.object(topology, topology.objects.countries)
           .geometries)
@@ -169,18 +167,36 @@ d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv",
     .on("mouseover", function(d,i) {
       var mouse = d3.mouse(svg.node()).map( function(d) { return parseInt(d); } );
 
-      tooltip
-        .classed("hidden", false)
+      tooltip 
         .attr("style", "left:"+(mouse[0]+25)+"px;top:"+mouse[1]+"px")
-        .html(quakes[i][2]);
+        .html(quakes[i][2])
+        .style("display", "block");
       d3.select(this)
         .style("stroke-opacity", 1);
           })
     .on("mouseout",  function(d,i) {
-      tooltip.classed("hidden", true);
+      tooltip.style("display", "none");
       d3.select(this)
         .style("stroke-opacity", 0);
           })
+
+  var legend = svg.selectAll(".legend")
+      .data(quakes[.domain())
+    .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+
+  legend.append("circle")
+      .attr("x", width - 18)
+      .attr("r", 5)
+      .style("fill", color);
+
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { return d; });
 
 });
 
@@ -194,7 +210,7 @@ var zoom = d3.behavior.zoom()
             d3.event.translate.join(",")+")scale("+d3.event.scale+")");
         world.selectAll("path")  
             .attr("d", path.projection(projection))
-            .style("stroke-width", function(){return 0.25/scale}); 
+            .style("stroke-width", function(){return 0.5/scale}); 
         circles.selectAll("circle")  
             .attr("d", path.projection(projection))
             .attr("r",function(d){return (Math.pow(d[2],2) / 2)/scale;})
@@ -210,7 +226,7 @@ var zoom = d3.behavior.zoom()
 
 svg.call(zoom)
 
-//chart
+//bar chart
 
 d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv", function(eqs) {
 
@@ -266,6 +282,13 @@ var svg = d3.select("body").append("svg")
       .attr("class", "x axis")
       .attr("transform", "translate(0," + height + ")")
       .call(xAxis)
+      .style('stroke', 'white')
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", 27)
+      .style("text-anchor", "end")
+      .text("Magnitude")
       .style('stroke', 'white');
       
 
@@ -297,10 +320,97 @@ var svg = d3.select("body").append("svg")
         .style("stroke", "white")
         console.log(d.mag)
       });
+ });
 
+//scatter plot
+
+d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv", function(eqs) {
+
+  var data = [];
+
+  var eqs = eqs.filter(function(eq) {
+      var mag = eq.mag;
+      var depth = eq.depth;
+      if (mag >= 1){
+        data.push({
+          mag: +mag,
+          depth: +depth
+        });
+      }
+    });
+
+  console.log(data)
+
+
+var margin = {top: 20, right: 20, bottom: 30, left: 100},
+    width = 600 - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(8);
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(6);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  x.domain(d3.extent(data, function(d) { return d.mag; })).nice();
+  y.domain([0, d3.max(data, function(d) { return d.depth; })]);
+  // y.domain(d3.extent(data, function(d) { return d.depth; })).nice();
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis)
+      .style('stroke', 'white')
+    .append("text")
+      .attr("class", "label")
+      .attr("x", width)
+      .attr("y", 27)
+      .style("text-anchor", "end")
+      .text("Magnitude")
+      .style('stroke', 'white');
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+      .style('stroke', 'white')
+    .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -40)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Depth")
+      .style('stroke', 'white');
+
+  svg.selectAll(".dot")
+      .data(data)
+    .enter().append("circle")
+      .attr("class", "dot")
+      .attr("r", 3.5)
+      .attr("cx", function(d) { return x(d.mag); })
+      .attr("cy", function(d) { return y(d.depth); })
+      .style("fill", function(d) { return colorRamp(d.mag); });
 
 
  });
+
+
 
 
     </script>
