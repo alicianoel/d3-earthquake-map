@@ -152,55 +152,18 @@ d3.json("data/tectonics.json", function(error, topology) {
 //load earthquake data
 d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv", function(eqs) {
   var quakes = [];
+  var eqCount = {};
+  var bardata = [];
+  var scatterdata = [];
 
   eqs = eqs.filter(function(eq) {
       var location = projection([+eq.longitude, +eq.latitude]);
       var mag = +eq.mag;
+      var depth = eq.depth;
+      var magInt = +Math.floor(eq.mag);
       if (mag >= 1){         //only including mag >=1
         quakes.push([location[0], location[1], mag]);
-        return true;
-      }
-    });
-
-  //sort descending so that smaller mag points are drawn on top
-  quakes.sort(function(a, b) {
-      return parseFloat(b[2] - parseFloat(a[2]));
-  });
-
-  console.log(quakes);
-  mapPoints(quakes);
-  svg.call(zoom);
-
-
-
-  var eqCount = {};
-
-  eqs.filter(function(eq) {
-      var mag = +Math.floor(eq.mag);
-      if (mag >= 1){
-        eqCount[mag] = eqCount[mag] ? eqCount[mag]+1 : 1;
-      }
-    });
-
-  var bardata = [];
-  Object.keys(eqCount).forEach(function(key) {
-      bardata.push({
-          mag: +key,
-          count: +eqCount[key]
-      });
-  });
-
-  console.log(bardata)
-  createLegend(bardata);
-  plotBar(bardata);
-
-
-  var scatterdata = [];
-
-  eqs.filter(function(eq) {
-      var mag = eq.mag;
-      var depth = eq.depth;
-      if (mag >= 1){
+        eqCount[magInt] = eqCount[magInt] ? eqCount[magInt]+1 : 1;
         scatterdata.push({
           mag: +mag,
           depth: +depth
@@ -208,9 +171,25 @@ d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv",
       }
     });
 
-  console.log(scatterdata);
+    Object.keys(eqCount).forEach(function(key) {
+      bardata.push({
+          mag: +key,
+          count: +eqCount[key]
+      });
+  });
+
+  //sort descending so that smaller mag points are drawn on top
+  quakes.sort(function(a, b) {
+      return parseFloat(b[2] - parseFloat(a[2]));
+  });
+
+  console.log(quakes,bardata,scatterdata);
+  mapPoints(quakes);
+  createLegend(bardata);
+  plotBar(bardata);
   plotScatter(scatterdata);
 
+  svg.call(zoom);
 });
 
 function mapPoints(data) {
@@ -284,7 +263,7 @@ function createLegend(data) {
     .data(data)
     .enter().append("g")
       .attr("class", "legenditem")
-      .attr("transform", function(d, i) { return "translate(" + (Math.pow(d.mag,2) / 2) * 8 + ",20)"; });
+      .attr("transform", function(d, i) { return "translate(" + (Math.pow(d.mag,2) / 2) * 8 + ",20)"; })
 
   legend.append("circle")
       .attr("r", function(d) { return Math.pow(d.mag,2) / 2; })
@@ -297,6 +276,16 @@ function createLegend(data) {
       .attr("dy", "1em")
       .text(function(d) { return d.mag; })
       .style('stroke', 'white');
+
+  d3.select(".legend").selectAll(".legenditem")
+        .style("pointer-events","visible")
+    .on('click', function(d){
+        d3.select(this)
+        console.log(d.mag);
+        d3.select("circle")
+        .style("stroke-width", 2)
+        .style("stroke", "white")
+    });
 
 }
 
