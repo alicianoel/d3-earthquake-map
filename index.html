@@ -160,9 +160,10 @@ d3.csv("http://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv",
       var location = projection([+eq.longitude, +eq.latitude]);
       var mag = +eq.mag;
       var depth = eq.depth;
+      var time = eq.time;
       var magInt = +Math.floor(eq.mag);
       if (mag >= 1){         //only including mag >=1
-        quakes.push([location[0], location[1], mag]);
+        quakes.push([location[0], location[1], mag, time]);
         eqCount[magInt] = eqCount[magInt] ? eqCount[magInt]+1 : 1;
         scatterdata.push({
           mag: +mag,
@@ -216,7 +217,7 @@ function mapPoints(data, clicked) {
 
       tooltip 
         .attr("style", "left:"+(mouse[0]+25)+"px;top:"+mouse[1]+"px")
-        .html(data[i][2])
+        .html([data[i][2] + "<br>" +data[i][3]])
         .style("display", "block");
       d3.select(this)
         .style("stroke-opacity", 1);
